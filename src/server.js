@@ -1,39 +1,46 @@
-import express from 'express'
-import mongoose from 'mongoose'
-import Pusher from 'pusher'
-import Messages from './dbMessages.js'
-// import Users from './dbUsers.js'
-import { User, Chat, Message } from './dbUsers.js'
+// import express from 'express'
+// import serverless from 'serverless-http'
+// import mongoose from 'mongoose'
+// import Pusher from 'pusher'
+// // import Messages from './dbMessages.js'
+// // import Users from './dbUsers.js'
+// import { User, Chat, Message } from './dbUsers.js'
+// const 
+
+const express = require('express')
+const serverless = require('serverless-http')
+const mongoose = require('mongoose')
+const Pusher = require('pusher')
+const DBUsers = require('./dbUsers.js')
+
+const User = DBUsers.User
+const Chat = DBUsers.Chat
+const Message = DBUsers.Message
 
 //app configuration
 const app = express()
-const port = process.env.PORT || 5000;
+// const port = process.env.PORT || 5000;
 
 //middlewares
 app.use(express.json())
 
-app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    res.header('Access-Control-Allow-Methods', 'PUT, POST, GET, DELETE, OPTIONS');
-    next();
-})
+const router = express.Router();
 
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, 'client/build')))
-    app.get('*', function(req, res) {
-        res.sendFile(path.join(__dirname, 'client/build', 'index.html'))
-    })
-}
+// app.use((req, res, next) => {
+//     res.setHeader("Access-Control-Allow-Origin", "*");
+//     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+//     res.header('Access-Control-Allow-Methods', 'PUT, POST, GET, DELETE, OPTIONS');
+//     next();
+// })
 
 
 //routes
-app.get('/', (req, res) => {
+router.get('/', (req, res) => {
     console.log('YKTV')
     res.status(200).send('hello world')
 })
 
-app.post('/register', (req, res) => {
+router.post('/register', (req, res) => {
     const dbRegister = req.body
     User.findOne({email: dbRegister.email})
     .then(user => {
@@ -58,7 +65,7 @@ app.post('/register', (req, res) => {
 })
 
 
-app.post('/chat', (req, res) => {
+router.post('/chat', (req, res) => {
     const dbChat = req.body
     const datum = []
     Chat.create(dbChat, (error, data) => {
@@ -84,7 +91,7 @@ app.post('/chat', (req, res) => {
 })
 
 
-app.post('/contacts', (req, res) => {
+router.post('/contacts', (req, res) => {
     const criteria = req.body
     Chat.find({$or: [ {'participants.sender': criteria.user}, {'participants.receiver': criteria.user}] }, (error, data) => {
     // Chat.find({'participants.receiver': criteria.user}, (error, data) => {
@@ -123,7 +130,7 @@ app.post('/contacts', (req, res) => {
     })
 })
 
-app.post('/contacts/contactId/:contactId', (req, res) => {
+router.post('/contacts/contactId/:contactId', (req, res) => {
     const author = req.body
     Message.find({authors: author.ath}, async (error, data) => {
         if (error) {
@@ -152,7 +159,7 @@ app.post('/contacts/contactId/:contactId', (req, res) => {
     })
 })
 
-app.put('/chat/id/:id', (req, res) => {
+router.put('/chat/id/:id', (req, res) => {
     const dbMessage = req.body
     
     Message.findByIdAndUpdate(
@@ -173,15 +180,15 @@ app.put('/chat/id/:id', (req, res) => {
     )
 })
 
-app.get('/messages/sync', (req, res) => {
-    Messages.find((error, data) => {
-        if (error) {
-            res.status(500).send(error)
-        } else {
-            res.status(200).send(data)
-        }
-    })
-})
+// app.get('/messages/sync', (req, res) => {
+//     Messages.find((error, data) => {
+//         if (error) {
+//             res.status(500).send(error)
+//         } else {
+//             res.status(200).send(data)
+//         }
+//     })
+// })
 
 //DATABASE config
 const mongodb_connection_url = 'mongodb+srv://admin:kRYqlnA1Iz5oE1Ud@cluster0.kl9ix.mongodb.net/whatsappMDB?retryWrites=true&w=majority'
@@ -205,25 +212,25 @@ db.once('open', () => {
     
     // const msgCollection = db.collection("messagecontents");
     // const changeStream = msgCollection.watch()
-    const changeStream = Messages.watch()
+    // const changeStream = Messages.watch()
     const changeChat = Message.watch({fullDocument: 'updateLookup'})
 
-    changeStream.on('change', (change) => {
-        console.log(change)
+    // changeStream.on('change', (change) => {
+    //     console.log(change)
 
-        if (change.operationType === 'insert') {
-            const messageDetails = change.fullDocument;
-            pusher.trigger('messages', 'inserted', {
-                _id: messageDetails._id,
-                name: messageDetails.name,
-                message: messageDetails.message,
-                timestamp: messageDetails.timestamp,
-                received: messageDetails.received
-            })
-        } else {
-            console.log("Error triggering pusher.")
-        }
-    })
+    //     if (change.operationType === 'insert') {
+    //         const messageDetails = change.fullDocument;
+    //         pusher.trigger('messages', 'inserted', {
+    //             _id: messageDetails._id,
+    //             name: messageDetails.name,
+    //             message: messageDetails.message,
+    //             timestamp: messageDetails.timestamp,
+    //             received: messageDetails.received
+    //         })
+    //     } else {
+    //         console.log("Error triggering pusher.")
+    //     }
+    // })
 
     changeChat.on('change', (change) => {
         console.log(change.fullDocument)
@@ -246,5 +253,6 @@ db.once('open', () => {
 })
 
 
-
-app.listen(port, () => console.log(`app is running on localhost:${port}`))
+app.use('/.netlify/functions/server', router)
+// app.listen(port, () => console.log(`app is running on localhost:${port}`))
+module.exports.handler = serverless(app)

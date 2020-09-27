@@ -1,5 +1,5 @@
-import mongoose from 'mongoose'
-
+// import mongoose from 'mongoose'
+const mongoose = require('mongoose')
 const userSchema = mongoose.Schema({
     appPhoneNumber: String,
     displayName: String,
@@ -39,6 +39,12 @@ const messageSchema = mongoose.Schema({
     ]
 })
 
-export const User = mongoose.model('User', userSchema)
-export const Chat = mongoose.model('Chat', chatSchema)
-export const Message = mongoose.model('Message', messageSchema)
+module.exports = {
+    User: mongoose.model('User', userSchema),
+    Chat: mongoose.model('Chat', chatSchema),
+    Message: mongoose.model('Message', messageSchema),
+}
+
+// export const User = mongoose.model('User', userSchema)
+// export const Chat = mongoose.model('Chat', chatSchema)
+// export const Message = mongoose.model('Message', messageSchema)
